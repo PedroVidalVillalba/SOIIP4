@@ -1,0 +1,7 @@
+# Ejecutables
+productor_LIFO
+consumidor_LIFO
+
+# Objetos 
+*.o
+
