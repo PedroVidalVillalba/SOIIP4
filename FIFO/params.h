@@ -3,7 +3,6 @@
 
 #include <unistd.h>
 #include <sys/types.h>
-#include <errno.h>
 
 #define N 5             /* Tamaño del buffer */
 #define NUM_ITEMS 100   /* Número de items a generar por cada productor */

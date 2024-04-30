@@ -16,7 +16,7 @@ INCLUDES = -I$(HEADERS_DIR)
 HEADERS = $(HEADERS_DIR)/params.h
 
 # Fuentes
-SRC = productor_LIFO.c consumidor_LIFO.c
+SRC = productor_FIFO.c consumidor_FIFO.c
 
 # Ejecutables o archivos de salida
 OUT = $(SRC:.c=)
@@ -35,5 +35,3 @@ all: $(OUT)
 # Borra todos los resultados de la compilación (prerrequisito: cleanobj)
 clean:
 	rm -f $(OUT)
-
-

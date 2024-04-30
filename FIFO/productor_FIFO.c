@@ -1,9 +1,9 @@
 /**
  * Sistemas Operativos 2.
  * Práctica 4. Sincronización de procesos con paso de mensajes.
- *             Programa del consumidor con cola LIFO.
+ *             Programa del productor con cola FIFO.
  *
- * @date 23/04/2024
+ * @date 30/04/2024
  * @authors Barba Cepedello, Luis
  * @authors Vidal Villalba, Pedro
  */
@@ -17,31 +17,28 @@
 
 
 /**
- * @brief Función a ejecutar por el consumidor.
+ * @brief Función a ejecutar por el productor.
  *
  * @details
- * El consumidor consumirá NUM_ITEMS elementos de un buffer compartido,
- * enviando mensajes de confirmación al productor cada vez que lo haga.
+ * El productor producirá NUM_ITEMS items en un buffer compartido.
  */
-void consumer(void);
+void producer(void);
 
 /**
- * Retira el último elemento de la cola de mensajes.
+ * Genera un entero aleatorio entre 0 y 10.
  *
- * @param control   Puntero al mensaje de control a enviar (ACK).
- * @param priority  Prioridad del item extraido. Útil para estudiar el comportamiento LIFO.
- *
- * @return	Carácter retirado del buffer.
+ * @param iter  Número de iteración en la que se produce el item
+ * @return  Caracter asociado a la iteración iter.
  */
-char remove_item(char* control, unsigned int* priority);
+char produce_item(int iter);
 
 /**
- * Muestra por pantalla el elemento consumido.
+ * Coloca el elemento item en el buffer.
  *
- * @param item	    Último valor leído del stack.
+ * @param item	    Elemento a introducir en el buffer.
  * @param position  Posición del item dentro de los 100 items.
  */
-void consume_item(char item, unsigned int position);
+void insert_item(char item, int position);
 
 /**
  * Se asegura que el buffer quede sin elementos.
@@ -66,17 +63,21 @@ int main(int argc, char** argv) {
     }
     sleep_time = atoi(argv[1]);
 
+    /* Borrado de los buffers de entrada
+    por si existían de una ejecución previa*/
+    mq_unlink(STORAGE1);
+    mq_unlink(STORAGE2);
 
     attr.mq_maxmsg = N;
     attr.mq_msgsize = sizeof (char);
 
     /* Apertura de los buffers */
-    storage1 = mq_open(STORAGE1, O_CREAT | O_RDONLY, 0777, &attr);
-    storage2 = mq_open(STORAGE2, O_CREAT | O_WRONLY, 0777, &attr);
+    storage1 = mq_open(STORAGE1, O_CREAT | O_WRONLY, 0777, &attr);
+    storage2 = mq_open(STORAGE2, O_CREAT | O_RDONLY, 0777, &attr);
 
-    if ((storage1 == -1) || (storage2 == -1)) fail("ERROR: Fallo al abrir los buffers");
+    if ((storage1 == -1) || (storage2 == -1)) fail("mq_open");
 
-    consumer();
+    producer();
 
     mq_close(storage1);
     mq_close(storage2);
@@ -88,30 +89,32 @@ int main(int argc, char** argv) {
 }
 
 
-char remove_item(char* control, unsigned int* priority) {
-    char message;
-    mq_receive(storage1, &message, sizeof(char), priority);
-    mq_send(storage2, control, sizeof(char), 0);    /* Enviar ACK */
-    return message;
+char produce_item(int iter) {
+    return 'a' + (iter % N);
 }
 
-void consume_item(char item, unsigned int position) {
-    consumer_printf("Eliminado el item "bold("%c")" del buffer (número de elemento: "bold("%2d")")\n", item, position);
+void insert_item(char item, int position) {
+    char control;
+
+    mq_receive(storage2, &control, sizeof(char), NULL);
+    mq_send(storage1, &item, sizeof(char), position);
 }
 
-void consumer(void) {
-    int item, i;
-    unsigned int position;
-    char control = '?';
-
-    for (i = 0; i < N; i++) mq_send(storage2, &control, sizeof(char), 0);
+void producer(void) {
+    int i;
+    char item;
 
     for (i = 0; i < NUM_ITEMS; i++) {
+        item = produce_item(i);
         sleep(sleep_time);
-        item = remove_item(&control, &position);
-        consume_item(item, position);
+        insert_item(item, NUM_ITEMS - i);
+        producer_printf("Insertado el item "bold("%c")" en el buffer (número de elemento: "bold("%2d")")\n", item, i);
     }
-    clear_buffer(storage1);
+
+    /* Vaciar los ACKs iniciales en el buffer de control */
+    for (i = 0; i < N; i++) mq_receive(storage2, &item, sizeof(char), NULL);
+
+    clear_buffer(storage2);
 }
 
 void clear_buffer(mqd_t buffer) {
@@ -125,12 +128,13 @@ void clear_buffer(mqd_t buffer) {
     attr.mq_flags |= O_NONBLOCK;
     mq_setattr(buffer, &attr, &old_attr);
 
+    /* Recibir tantos mensajes como queden en el buffer */
     for (i = 0; i < attr.mq_curmsgs; i++) {
         mq_receive(buffer, &trash, sizeof(char), NULL);
     }
 
     mq_getattr(buffer, &attr);
-    consumer_printf("Número de elementos restantes en el buffer de producción: "bold("%ld")"\n", attr.mq_curmsgs);
+    producer_printf("Número de elementos restantes en el buffer de control: "bold("%ld")"\n", attr.mq_curmsgs);
 
     /* Volvemos a dejar el buffer como estaba */
     mq_setattr(buffer, &old_attr, NULL);

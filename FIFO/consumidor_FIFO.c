@@ -1,9 +1,9 @@
 /**
  * Sistemas Operativos 2.
  * Práctica 4. Sincronización de procesos con paso de mensajes.
- *             Programa del consumidor con cola LIFO.
+ *             Programa del consumidor con cola FIFO.
  *
- * @date 23/04/2024
+ * @date 30/04/2024
  * @authors Barba Cepedello, Luis
  * @authors Vidal Villalba, Pedro
  */
@@ -29,7 +29,7 @@ void consumer(void);
  * Retira el último elemento de la cola de mensajes.
  *
  * @param control   Puntero al mensaje de control a enviar (ACK).
- * @param priority  Prioridad del item extraido. Útil para estudiar el comportamiento LIFO.
+ * @param priority  Prioridad del item extraido. Útil para estudiar el comportamiento FIFO.
  *
  * @return	Carácter retirado del buffer.
  */
@@ -109,7 +109,7 @@ void consumer(void) {
     for (i = 0; i < NUM_ITEMS; i++) {
         sleep(sleep_time);
         item = remove_item(&control, &position);
-        consume_item(item, position);
+        consume_item(item, NUM_ITEMS - position);
     }
     clear_buffer(storage1);
 }
